@@ -83,7 +83,10 @@ return {
                 map("n", "gD", vim.lsp.buf.declaration, opts)
                 opts.desc = "Go to references"
                 map("n", "gr", vim.lsp.buf.references, opts)
-                opts.desc = "Go to implementations (subclasses/overrides)"
+                -- pyright doesn't advertise implementationProvider at all
+                -- (verified in tests/config/lsp_spec.lua), so this is a
+                -- no-op for Python — kept for LSPs that do support it.
+                opts.desc = "Go to implementations (not supported by pyright)"
                 map("n", "gI", vim.lsp.buf.implementation, opts)
                 opts.desc = "Go to type definition"
                 map("n", "gy", vim.lsp.buf.type_definition, opts)
