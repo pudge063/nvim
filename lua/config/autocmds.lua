@@ -13,3 +13,19 @@ vim.api.nvim_create_autocmd("BufEnter", {
         end
     end,
 })
+
+-- Make plain code text (variables/identifiers/parameters) bold so it reads
+-- as more prominent, without touching any theme's actual colors. Runs on
+-- every `:colorscheme` switch, so it applies no matter which of the
+-- installed themes (sonokai, dracula, cyberdream, ...) is active.
+vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = function()
+        for _, group in ipairs({ "@variable", "@parameter", "Identifier" }) do
+            local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = group, link = false })
+            if ok then
+                hl.bold = true
+                vim.api.nvim_set_hl(0, group, hl)
+            end
+        end
+    end,
+})
