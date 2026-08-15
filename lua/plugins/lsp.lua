@@ -26,8 +26,9 @@ return {
         vim.lsp.config("*", { capabilities = capabilities })
 
         -- Python: pyright for types/navigation, ruff for lint + format.
-        -- venv-selector.lua points both at whichever interpreter you pick,
-        -- and pyright also auto-detects a `.venv` in the project root.
+        -- venv-selector.lua points both at whichever interpreter you pick;
+        -- pythonPath below is just the automatic fallback for the common
+        -- case of a `.venv` sitting in the project root (see LspAttach).
         vim.lsp.config("pyright", {
             settings = {
                 python = {
@@ -63,12 +64,29 @@ return {
                     client.server_capabilities.hoverProvider = false
                 end
 
+                -- If nobody picked a venv via venv-selector yet, fall back to
+                -- <project-root>/.venv so imports/go-to-definition work out
+                -- of the box for the common "venv lives in the repo" case.
+                if client and client.name == "pyright" and client.config.root_dir then
+                    local venv_python = client.config.root_dir .. "/.venv/bin/python"
+                    if not client.config.settings.python.pythonPath and vim.uv.fs_stat(venv_python) then
+                        client.config.settings.python.pythonPath = venv_python
+                        client:notify("workspace/didChangeConfiguration", { settings = client.config.settings })
+                    end
+                end
+
                 local opts = { buffer = ev.buf }
                 local map = vim.keymap.set
                 opts.desc = "Go to definition"
                 map("n", "gd", vim.lsp.buf.definition, opts)
+                opts.desc = "Go to declaration"
+                map("n", "gD", vim.lsp.buf.declaration, opts)
                 opts.desc = "Go to references"
                 map("n", "gr", vim.lsp.buf.references, opts)
+                opts.desc = "Go to implementations (subclasses/overrides)"
+                map("n", "gI", vim.lsp.buf.implementation, opts)
+                opts.desc = "Go to type definition"
+                map("n", "gy", vim.lsp.buf.type_definition, opts)
                 opts.desc = "Hover documentation"
                 map("n", "K", vim.lsp.buf.hover, opts)
                 opts.desc = "Rename symbol"
@@ -77,6 +95,12 @@ return {
                 map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, opts)
                 opts.desc = "Line diagnostics"
                 map("n", "<leader>d", vim.diagnostic.open_float, opts)
+                opts.desc = "Signature help"
+                map("i", "<C-h>", vim.lsp.buf.signature_help, opts)
+                opts.desc = "Incoming calls (who calls this)"
+                map("n", "<leader>ci", vim.lsp.buf.incoming_calls, opts)
+                opts.desc = "Outgoing calls (what this calls)"
+                map("n", "<leader>co", vim.lsp.buf.outgoing_calls, opts)
             end,
         })
     end,

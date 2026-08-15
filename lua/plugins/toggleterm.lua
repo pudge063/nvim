@@ -3,6 +3,9 @@ return {
     version = "*",
     keys = {
         { "<C-\\>", "<cmd>ToggleTerm<cr>", desc = "Toggle terminal", mode = { "n", "t" } },
+        -- fallback: on some macOS keyboard layouts/terminal apps Ctrl+\ is
+        -- awkward to type or gets intercepted before it reaches nvim.
+        { "<leader>tt", "<cmd>ToggleTerm<cr>", desc = "Toggle terminal", mode = { "n", "t" } },
     },
     opts = {
         direction = "float",
