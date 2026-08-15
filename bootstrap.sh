@@ -38,9 +38,15 @@ esac
 
 gh_latest_tag() {
     # $1 = owner/repo
-    curl -fsSL "https://api.github.com/repos/$1/releases/latest" \
-        | grep -m1 '"tag_name"' \
-        | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'
+    # curl fully into a variable first: piping straight into `grep -m1`
+    # makes grep close the pipe as soon as it matches, which makes curl
+    # fail with "Failure writing output to destination" (exit 23).
+    local json
+    json="$(curl -fsSL "https://api.github.com/repos/$1/releases/latest")"
+    # no -m1: it closes the pipe as soon as it matches, and since
+    # "tag_name" appears exactly once in this payload anyway, plain
+    # grep (reads to EOF, no early pipe close) is both correct and safe.
+    printf '%s' "$json" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'
 }
 
 fetch_and_unpack() {
