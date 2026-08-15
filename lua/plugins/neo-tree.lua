@@ -8,7 +8,26 @@ return {
     },
     cmd = "Neotree",
     keys = {
-        { "<leader>e", "<cmd>Neotree toggle<cr>", desc = "Toggle file tree" },
+        {
+            "<leader>e",
+            function()
+                local tree_win
+                for _, win in ipairs(vim.api.nvim_list_wins()) do
+                    if vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "neo-tree" then
+                        tree_win = win
+                        break
+                    end
+                end
+                if not tree_win then
+                    vim.cmd("Neotree toggle") -- unlike `show`, this also focuses on open
+                elseif vim.api.nvim_get_current_win() == tree_win then
+                    vim.cmd("Neotree close")
+                else
+                    vim.api.nvim_set_current_win(tree_win)
+                end
+            end,
+            desc = "Focus/open file tree (close if already focused)",
+        },
     },
     opts = {
         filesystem = {
