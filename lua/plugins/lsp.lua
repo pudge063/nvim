@@ -9,13 +9,15 @@ return {
     config = function()
         require("mason").setup()
 
+        -- mason-tool-installer owns the actual blocking install (used by
+        -- bootstrap.sh via `:MasonToolsInstallSync`, headless-safe).
         require("mason-tool-installer").setup({
-            ensure_installed = { "stylua" },
+            ensure_installed = { "pyright", "ruff", "lua_ls", "stylua" },
         })
 
         -- native vim.lsp.config/vim.lsp.enable API (Neovim >= 0.11).
-        -- mason-lspconfig installs the servers and calls vim.lsp.enable()
-        -- for everything in ensure_installed once they're on disk.
+        -- mason-lspconfig wires vim.lsp.enable() for everything below
+        -- once mason-tool-installer has them on disk.
         require("mason-lspconfig").setup({
             ensure_installed = { "pyright", "ruff", "lua_ls" },
         })

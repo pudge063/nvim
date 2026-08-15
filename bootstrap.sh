@@ -68,8 +68,10 @@ if [ "$CONFIG_DIR" != "$(cd "$(dirname "$0")" && pwd)" ]; then
     echo "Make sure this repo is checked out at $CONFIG_DIR before continuing."
 fi
 
-echo "Syncing plugins (lazy.nvim) and LSP tools (mason) headlessly..."
+echo "Syncing plugins (lazy.nvim)..."
 nvim --headless "+Lazy! sync" +qa
-nvim --headless "+MasonToolsInstall" +qa 2>/dev/null || true
+
+echo "Installing LSP servers / formatters via mason (pyright, ruff, lua_ls, stylua)..."
+nvim --headless "+MasonToolsInstallSync" +qa
 
 echo "--- Done. Run 'nvim' to start. ---"
