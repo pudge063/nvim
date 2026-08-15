@@ -30,7 +30,9 @@ return {
         -- whatever's missing on a later, ordinary launch. pcall guards the
         -- rare case this races the plugin's own module load right after a
         -- fresh clone (harmless — it'll just retry next launch too).
-        local parser_dir = vim.fn.stdpath("data") .. "/lazy/nvim-treesitter/parser"
+        -- default install_dir is stdpath('data')/site, not the plugin's
+        -- own directory under .../lazy/nvim-treesitter
+        local parser_dir = vim.fn.stdpath("data") .. "/site/parser"
         local missing = {}
         for _, lang in ipairs(langs) do
             if vim.fn.filereadable(parser_dir .. "/" .. lang .. ".so") == 0 then

@@ -210,7 +210,9 @@ fi
 nvim --headless -c "lua require('lazy').sync({ wait = true, show = false })" -c "qa"
 
 ts_langs=(python lua vim vimdoc bash markdown markdown_inline json yaml toml)
-parser_dir="$HOME/.local/share/nvim/lazy/nvim-treesitter/parser"
+# nvim-treesitter's default install_dir is stdpath('data')/site, not its
+# own plugin directory under .../lazy/nvim-treesitter.
+parser_dir="$HOME/.local/share/nvim/site/parser"
 echo "  waiting for treesitter parsers to finish compiling..."
 waited=0
 while [ "$waited" -lt 180 ]; do
