@@ -62,9 +62,20 @@ fetch_and_unpack() {
     rm -rf "$tmp"
 }
 
+fetch_gz_binary() {
+    # $1 = url  $2 = binary name to install into $BIN_DIR
+    local url="$1" name="$2" tmp
+    tmp="$(mktemp -d)"
+    echo "  fetching $url"
+    curl -fsSL "$url" -o "$tmp/pkg.gz"
+    gunzip -c "$tmp/pkg.gz" > "$BIN_DIR/$name"
+    chmod +x "$BIN_DIR/$name"
+    rm -rf "$tmp"
+}
+
 link() { ln -sf "$1" "$BIN_DIR/$(basename "$1")"; }
 
-echo "[1/5] Base prerequisites (git, C compiler — needed for treesitter parsers)"
+echo "[1/6] Base prerequisites (git, C compiler — needed for treesitter parsers)"
 case "$os" in
     Darwin)
         if ! command -v git >/dev/null 2>&1 || ! command -v cc >/dev/null 2>&1; then
@@ -113,7 +124,7 @@ case "$os" in
     *) echo "Unsupported OS: $os"; exit 1 ;;
 esac
 
-echo "[2/5] Neovim (official release binary)"
+echo "[2/6] Neovim (official release binary)"
 case "$os" in
     Darwin) nvim_url="https://github.com/neovim/neovim/releases/latest/download/nvim-macos-${arch_nvim}.tar.gz" ;;
     Linux)  nvim_url="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${arch_nvim}.tar.gz" ;;
@@ -121,7 +132,7 @@ esac
 fetch_and_unpack "$nvim_url" nvim
 link "$INSTALL_ROOT/nvim/bin/nvim"
 
-echo "[3/5] ripgrep + fd (needed by Telescope)"
+echo "[3/6] ripgrep + fd (needed by Telescope)"
 rg_tag="$(gh_latest_tag BurntSushi/ripgrep)"
 fd_tag="$(gh_latest_tag sharkdp/fd)"
 case "$os" in
@@ -139,7 +150,15 @@ fetch_and_unpack "https://github.com/sharkdp/fd/releases/download/${fd_tag}/fd-$
 link "$INSTALL_ROOT/ripgrep/rg"
 link "$INSTALL_ROOT/fd/fd"
 
-echo "[4/5] Node.js (mason needs it to install pyright)"
+echo "[4/6] tree-sitter CLI (nvim-treesitter's main branch needs it to compile parsers)"
+ts_tag="$(gh_latest_tag tree-sitter/tree-sitter)"
+case "$os" in
+    Darwin) ts_target="macos-${arch_node}" ;;
+    Linux)  ts_target="linux-${arch_node}" ;;
+esac
+fetch_gz_binary "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-${ts_target}.gz" tree-sitter
+
+echo "[5/6] Node.js (mason needs it to install pyright)"
 case "$os" in
     Darwin) node_url="https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-${arch_node}.tar.gz" ;;
     Linux)  node_url="https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-${arch_node}.tar.gz" ;;
@@ -163,7 +182,7 @@ fi
 
 echo "nvim: $(nvim --version | head -n1)"
 
-echo "[5/5] Config + plugins + LSP tools"
+echo "[6/6] Config + plugins + LSP tools"
 if [ ! -d "$CONFIG_DIR/.git" ]; then
     if [ -d "$CONFIG_DIR" ] && [ -n "$(ls -A "$CONFIG_DIR" 2>/dev/null)" ]; then
         echo "  $CONFIG_DIR already exists and isn't this repo — not touching it."
@@ -178,7 +197,34 @@ if [ ! -d "$CONFIG_DIR/.git" ]; then
     fi
 fi
 
-nvim --headless "+Lazy! sync" +qa
+# `+Lazy! sync` as a bare ex-command does NOT reliably block headless nvim
+# until build hooks (like nvim-treesitter's parser compilation) finish, and
+# calling `require('nvim-treesitter').install()` again from a second nvim
+# process to force it is itself flaky (races the plugin's own module/rtp
+# setup right after a fresh clone, intermittently throwing "attempt to call
+# field 'install' (a nil value)"). The build hook genuinely does finish the
+# job on its own in the background — it just needs a bit more time than
+# `sync()` waits for — so: kick sync off, then poll the filesystem in plain
+# bash for the actual compiled .so files. No further nvim/Lua involved,
+# nothing left to race.
+nvim --headless -c "lua require('lazy').sync({ wait = true, show = false })" -c "qa"
+
+ts_langs=(python lua vim vimdoc bash markdown markdown_inline json yaml toml)
+parser_dir="$HOME/.local/share/nvim/lazy/nvim-treesitter/parser"
+echo "  waiting for treesitter parsers to finish compiling..."
+waited=0
+while [ "$waited" -lt 180 ]; do
+    missing=0
+    for lang in "${ts_langs[@]}"; do
+        [ -f "$parser_dir/$lang.so" ] || missing=1
+    done
+    [ "$missing" -eq 0 ] && break
+    sleep 3
+    waited=$((waited + 3))
+done
+if [ "$missing" -eq 1 ]; then
+    echo "  warning: some treesitter parsers still missing after ${waited}s — they'll finish installing next time you open nvim."
+fi
 nvim --headless "+MasonToolsInstallSync" +qa
 
 echo "--- Done. Open a new shell (for PATH) and run 'nvim'. ---"
