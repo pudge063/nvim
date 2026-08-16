@@ -12,6 +12,14 @@ return {
             desc = "Format buffer",
         },
         {
+            "\\\\",
+            function()
+                require("conform").format({ lsp_fallback = true, async = false, timeout_ms = 1000 })
+            end,
+            mode = { "n", "v" },
+            desc = "Format buffer",
+        },
+        {
             "<leader>uf",
             function()
                 vim.b.disable_autoformat = not vim.b.disable_autoformat
@@ -38,6 +46,9 @@ return {
         formatters_by_ft = {
             python = { "ruff_format", "ruff_organize_imports" },
             lua = { "stylua" },
+            yaml = { "prettier" },
+            toml = { "taplo" },
+            markdown = { "prettier" },
         },
         format_on_save = function(bufnr)
             if vim.g.disable_autoformat or vim.b[bufnr].disable_autoformat then

@@ -2,14 +2,17 @@
 
 Портативный конфиг Neovim, заточенный под Python-разработку: LSP
 (pyright + ruff), автоматическое определение venv, Telescope, дерево
-файлов, встроенный терминал, undo-tree, тема monokai-pro. Ставится
+файлов, встроенный терминал, undo-tree, тема sonokai. Ставится
 на новой машине (macOS / Linux) одной командой, без Homebrew на маке.
 
 Репозиторий: https://gl.pivlab.dev/rnd/nvim-config
 
 **Документация:**
 - [KEYMAPS.md](KEYMAPS.md) — полный список хоткеев этого конфига, подробно, с пояснениями и примерами
+- [SEARCH.md](SEARCH.md) — глубокий разбор поиска (Telescope): синтаксис нечёткого поиска, нюансы `live_grep`, мультивыбор
+- [EX-COMMANDS.md](EX-COMMANDS.md) — команды `:` от простого к сложному: диапазоны, `:substitute`, `:sort`, `:g`/`:v`, готовые рецепты
 - [VIM-BASICS.md](VIM-BASICS.md) — база самого vim (режимы, движения, текстовые объекты, регистры, макросы...), не зависит от этого конфига
+- [docs/adr/](docs/adr/) — архитектурные решения этого конфига в формате ADR (почему так, а не иначе)
 
 ## Быстрый старт
 
@@ -19,7 +22,7 @@ curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bas
 ```
 Один `curl`, который: ставит Neovim/ripgrep/fd/Node.js как бинарники в
 `~/.local`, клонирует этот репозиторий в `~/.config/nvim`, синхронизирует
-плагины и ставит pyright/ruff/lua_ls/stylua через mason.
+плагины и ставит pyright/ruff/lua_ls/stylua/prettier/taplo через mason.
 
 После этого откройте новый терминал (чтобы подхватился PATH) и запустите
 `nvim`.
@@ -29,6 +32,32 @@ curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bas
 git clone git@gl.pivlab.dev:rnd/nvim-config.git ~/.config/nvim
 ~/.config/nvim/bootstrap.sh
 ```
+
+## Обновление и удаление у себя на машине
+
+`bootstrap.sh` — это не только установщик, у него три режима (про то,
+как обновить сам `lazy-lock.json` в репозитории — отдельный раздел
+[«Обновление lazy-lock.json» ниже](#обновление-lazy-lockjson-для-мейнтейнера)):
+
+```bash
+~/.config/nvim/bootstrap.sh              # первичная установка (см. выше)
+~/.config/nvim/bootstrap.sh --update      # git pull + пересинхронизировать плагины/тулы, БЕЗ переустановки бинарников
+~/.config/nvim/bootstrap.sh --uninstall   # полный откат: удалить конфиг, плагины, бинарники
+~/.config/nvim/bootstrap.sh --help        # что делает каждый режим, подробно
+```
+
+- **`--update`** — самый частый случай: подтянуть новые коммиты этого
+  репозитория (новые плагины, форматтеры, хоткеи) на уже настроенной
+  машине. Не трогает сами бинарники Neovim/ripgrep/fd/Node.js — только
+  `git pull` в `~/.config/nvim` и пересборку плагинов/mason-тулов.
+- **`--uninstall`** — полный сброс к состоянию «как будто этого конфига
+  никогда не было»: удаляет `~/.config/nvim`, данные плагинов/mason
+  (`~/.local/share/nvim`, `~/.local/state/nvim`, `~/.cache/nvim`),
+  бинарники под `~/.local/opt` и их симлинки в `~/.local/bin`, чистит
+  добавленную строку `PATH` из `.zshrc`/`.bashrc`/`.profile`. Спрашивает
+  подтверждение (`-y`/`--yes` — пропустить вопрос). Системные пакеты,
+  поставленные через `apt`/`dnf` (git, curl, компилятор) — не трогает,
+  они общие для системы, не только для этого конфига.
 
 ## Что внутри
 
@@ -42,20 +71,25 @@ git clone git@gl.pivlab.dev:rnd/nvim-config.git ~/.config/nvim
 │   │   ├── autocmds.lua       # автопереход cwd на корень проекта (.git)
 │   │   └── lazy.lua           # bootstrap lazy.nvim
 │   └── plugins/                # один файл = один plugin spec
-│       ├── colorscheme.lua    # monokai-pro
+│       ├── colorscheme.lua    # sonokai (+ monokai-pro/dracula/cyberdream/synthwave84 на выбор)
+│       ├── lualine.lua        # статус-/tabline
+│       ├── gitsigns.lua       # знаки изменений на полях, хунки, blame
 │       ├── telescope.lua      # поиск файлов/текста/символов
 │       ├── neo-tree.lua       # дерево файлов
 │       ├── toggleterm.lua     # терминал внутри nvim
 │       ├── treesitter.lua     # подсветка синтаксиса
 │       ├── completion.lua     # blink.cmp — автодополнение
 │       ├── lsp.lua            # mason + pyright + ruff + lua_ls
-│       ├── formatting.lua     # conform.nvim (ruff format, stylua)
+│       ├── formatting.lua     # conform.nvim (ruff format, stylua, prettier, taplo)
 │       ├── python.lua         # venv-selector.nvim
 │       ├── undotree.lua       # визуальное дерево истории отмены
 │       ├── autopairs.lua      # авто-закрытие скобок/кавычек
 │       └── align.lua          # mini.align — ручное выравнивание по столбцам
-├── bootstrap.sh                # установщик (см. ниже)
+├── bootstrap.sh                # установщик/updater/uninstaller (см. ниже)
+├── docs/adr/                    # архитектурные решения (ADR, MADR-формат)
 ├── KEYMAPS.md                  # все хоткеи этого конфига, подробно
+├── SEARCH.md                    # глубокий разбор поиска (Telescope)
+├── EX-COMMANDS.md               # команды `:`, от простого к сложному
 ├── VIM-BASICS.md                # база самого vim, без привязки к конфигу
 └── lazy-lock.json              # точные версии всех плагинов — коммитится
 ```
@@ -113,11 +147,18 @@ LTS часто старые, поэтому они тоже качаются к�
 
 ## Тема и прозрачность
 
-`monokai-pro.nvim`, `filter = "spectrum"`, `transparent_background = true`.
-Сама прозрачность рисует терминал (Ghostty/iTerm2/Alacritty —
-`background-opacity` в его настройках), nvim только не закрашивает фон
-поверх неё. Другие фильтры темы: `classic | machine | octagon | pro |
-ristretto` — поменять в `lua/plugins/colorscheme.lua`.
+По умолчанию активна **sonokai** (`sonokai_style = "default"`,
+`sonokai_transparent_background = 1`). В `lua/plugins/colorscheme.lua`
+зарегистрировано ещё несколько тем одновременно — `monokai-pro`,
+`dracula`, `cyberdream`, `synthwave84` — они не активируются сами, но
+уже настроены и переключаются мгновенно: `:colorscheme dracula`,
+`:colorscheme cyberdream`, `:colorscheme monokai-pro-classic` и т.д.
+(имя конкретного варианта — в комментарии рядом с каждой темой в файле).
+
+Прозрачность у всех, кроме `synthwave84` (у него неонового вида без
+непрозрачного фона не добиться), рисует терминал (Ghostty/iTerm2/
+Alacritty — `background-opacity` в его настройках), nvim только не
+закрашивает фон поверх неё.
 
 ## Python: LSP, venv, ООП-навигация
 
@@ -137,9 +178,10 @@ ristretto` — поменять в `lua/plugins/colorscheme.lua`.
   набрали `(` — получили `()`, курсор между ними; вложенность работает
   корректно, включая строки/комментарии (treesitter-aware, лишний раз не
   навязывает пару там, где это мешает).
-- **Форматирование** — ruff (`python`) / stylua (`lua`) через
-  `conform.nvim`, включено автоматически на `:w`, либо по хоткею в любой
-  момент, не дожидаясь сохранения.
+- **Форматирование** — ruff (`python`), stylua (`lua`), prettier
+  (`yaml`, `markdown`), taplo (`toml`) через `conform.nvim`, включено
+  автоматически на `:w`, либо по хоткею (`<leader>mp` или `\\` дважды)
+  в любой момент, не дожидаясь сохранения.
 - **Выравнивание по столбцам** (не то же самое, что форматирование —
   ruff это сознательно не делает) — `mini.align`.
 
@@ -159,7 +201,7 @@ ristretto` — поменять в `lua/plugins/colorscheme.lua`.
 | `<C-\>` | Терминал внутри nvim |
 | `gd` / `K` | Перейти к определению / посмотреть тип и документацию |
 | `<leader>rn` | Переименовать символ во всём проекте |
-| `<leader>mp` | Отформатировать буфер прямо сейчас |
+| `<leader>mp` / `\\` (дважды) | Отформатировать буфер прямо сейчас |
 | `<leader>u` | Дерево истории отмены |
 
 Про сам vim (режимы, `dd`/`ciw`/макросы и т.п.), а не про этот
@@ -195,7 +237,12 @@ nvim:
 раскладки, ни от tmux/Karabiner. Если `Ctrl+\` у вас не работает — просто
 пользуйтесь `<leader>tt` и не тратьте время на диагностику raw-режима tty.
 
-## Обновление
+## Обновление lazy-lock.json (для мейнтейнера)
+
+Это про то, как поднять версии плагинов **в самом репозитории** —
+не путать с [обновлением у себя на машине](#обновление-и-удаление-у-себя-на-машине)
+(`bootstrap.sh --update`), это разные вещи: то тянет уже закоммиченные
+версии, это — коммитит новые.
 
 ```bash
 cd ~/.config/nvim
@@ -205,8 +252,8 @@ git add lazy-lock.json && git commit -m "bump plugins" && git push
 (`require('lazy').sync({wait=true})`, а не голое `+Lazy! sync` — тот не
 дожидается build-хуков вроде компиляции treesitter-парсеров, см.
 `bootstrap.sh`.)
-На остальных машинах — `git pull`, версии подтянутся при следующем
-запуске nvim.
+На остальных машинах — `bootstrap.sh --update` (или просто `git pull`),
+версии подтянутся при следующем запуске nvim.
 
 ## Troubleshooting
 

@@ -12,7 +12,7 @@ return {
         -- mason-tool-installer owns the actual blocking install (used by
         -- bootstrap.sh via `:MasonToolsInstallSync`, headless-safe).
         require("mason-tool-installer").setup({
-            ensure_installed = { "pyright", "ruff", "lua_ls", "stylua" },
+            ensure_installed = { "pyright", "ruff", "lua_ls", "stylua", "prettier", "taplo" },
         })
 
         -- native vim.lsp.config/vim.lsp.enable API (Neovim >= 0.11).
