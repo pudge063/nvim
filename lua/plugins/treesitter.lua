@@ -6,7 +6,7 @@
 -- yourself, and `.install()` requires the `tree-sitter` CLI (see
 -- bootstrap.sh) to compile parsers, not just a C compiler.
 local langs = {
-    "python", "lua", "vim", "vimdoc", "bash",
+    "python", "lua", "vim", "vimdoc", "bash", "c", "cpp",
     "markdown", "markdown_inline", "json", "yaml", "toml",
 }
 
@@ -46,7 +46,7 @@ return {
         end
 
         vim.api.nvim_create_autocmd("FileType", {
-            pattern = { "python", "lua", "vim", "help", "sh", "markdown", "json", "yaml", "toml" },
+            pattern = { "python", "lua", "vim", "help", "sh", "c", "cpp", "markdown", "json", "yaml", "toml" },
             callback = function()
                 vim.treesitter.start()
             end,

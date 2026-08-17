@@ -11,6 +11,13 @@ return {
         direction = "float",
         float_opts = { border = "rounded" },
         shell = vim.o.shell,
+        -- opening the terminal (about to run shell commands) and
+        -- closing/hiding it (back to editing) both count as "might have
+        -- touched files on disk" — see options.lua for the autoread flag
+        -- this depends on. Just an mtime stat per open buffer, runs only
+        -- at these two moments (no polling), so no perf/interruption cost.
+        on_open = function() vim.cmd("checktime") end,
+        on_close = function() vim.cmd("checktime") end,
     },
     config = function(_, opts)
         require("toggleterm").setup(opts)

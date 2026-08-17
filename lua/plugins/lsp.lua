@@ -5,6 +5,7 @@ return {
         "mason-org/mason-lspconfig.nvim",
         "WhoIsSethDaniel/mason-tool-installer.nvim",
         "saghen/blink.cmp",
+        "b0o/schemastore.nvim",
     },
     config = function()
         require("mason").setup()
@@ -12,14 +13,22 @@ return {
         -- mason-tool-installer owns the actual blocking install (used by
         -- bootstrap.sh via `:MasonToolsInstallSync`, headless-safe).
         require("mason-tool-installer").setup({
-            ensure_installed = { "pyright", "ruff", "lua_ls", "stylua", "prettier", "taplo" },
+            ensure_installed = {
+                "pyright", "ruff", "lua_ls", "clangd",
+                "yamlls", "terraformls", "dockerls", "bashls", "cmake",
+                "debugpy",
+                "stylua", "prettier", "taplo",
+            },
         })
 
         -- native vim.lsp.config/vim.lsp.enable API (Neovim >= 0.11).
         -- mason-lspconfig wires vim.lsp.enable() for everything below
         -- once mason-tool-installer has them on disk.
         require("mason-lspconfig").setup({
-            ensure_installed = { "pyright", "ruff", "lua_ls" },
+            ensure_installed = {
+                "pyright", "ruff", "lua_ls", "clangd",
+                "yamlls", "terraformls", "dockerls", "bashls", "cmake",
+            },
         })
 
         local capabilities = require("blink.cmp").get_lsp_capabilities()
@@ -50,6 +59,29 @@ return {
             },
         })
 
+        -- C/C++: clangd. Reads compile_commands.json (or falls back to a
+        -- guess) for accurate diagnostics/completion; --header-insertion
+        -- keeps auto-includes from adding IWYU-style forward decls we don't want.
+        vim.lsp.config("clangd", {
+            cmd = { "clangd", "--background-index", "--clang-tidy", "--header-insertion=never" },
+        })
+
+        -- DevOps/platform: k8s manifests, GitHub/GitLab CI, Ansible, docker-compose
+        -- all live in plain .yaml with no discoverable schema of their own, so
+        -- SchemaStore.nvim's catalog is what gives yamlls anything to validate against.
+        vim.lsp.config("yamlls", {
+            settings = {
+                yaml = {
+                    schemaStore = { enable = false, url = "" }, -- disable built-in, use schemastore.nvim's catalog instead
+                    schemas = require("schemastore").yaml.schemas(),
+                },
+            },
+        })
+
+        -- terraformls, dockerls, bashls, cmake: mason-lspconfig enables them
+        -- with sane defaults once mason-tool-installer has the binaries down —
+        -- no per-server settings needed here.
+
         vim.diagnostic.config({
             virtual_text = true,
             severity_sort = true,
@@ -79,6 +111,15 @@ return {
                 local map = vim.keymap.set
                 opts.desc = "Go to definition"
                 map("n", "gd", vim.lsp.buf.definition, opts)
+                -- split first, then jump in it — vim.lsp.buf.definition()
+                -- always jumps in the current window, so this is the trick
+                -- to land the definition beside the original file instead
+                -- of replacing it.
+                opts.desc = "Go to definition (vertical split)"
+                map("n", "<leader>gd", function()
+                    vim.cmd("vsplit")
+                    vim.lsp.buf.definition()
+                end, opts)
                 opts.desc = "Go to declaration"
                 map("n", "gD", vim.lsp.buf.declaration, opts)
                 opts.desc = "Go to references"

@@ -31,7 +31,7 @@ PATH_LINE="export PATH=\"$BIN_DIR:\$PATH\""
 # current LTS and updating this one line.
 NODE_VERSION="v24.19.0"
 
-TS_LANGS=(python lua vim vimdoc bash markdown markdown_inline json yaml toml)
+TS_LANGS=(python lua vim vimdoc bash c cpp markdown markdown_inline json yaml toml)
 # nvim-treesitter's default install_dir is stdpath('data')/site, not its
 # own plugin directory under .../lazy/nvim-treesitter.
 PARSER_DIR="$DATA_DIR/site/parser"
@@ -171,6 +171,12 @@ cmd_install() {
             command -v curl >/dev/null 2>&1 || missing+=(curl)
             command -v tar >/dev/null 2>&1 || missing+=(tar)
             command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || missing+=(compiler)
+            command -v gdb >/dev/null 2>&1 || missing+=(gdb)
+            # `python3 -m venv` needs a separate package on Debian/Ubuntu (not
+            # bundled with python3) — mason installs debugpy and
+            # cmake-language-server into a venv, so this fails those two
+            # silently-ish (spawn: python3 failed with exit code 1) without it.
+            python3 -m venv --help >/dev/null 2>&1 || missing+=(python3-venv)
             if [ ${#missing[@]} -eq 0 ]; then
                 echo "  already present."
             else
@@ -179,10 +185,10 @@ cmd_install() {
                 case "${ID:-}${ID_LIKE:-}" in
                     *debian*|*ubuntu*)
                         sudo apt-get update
-                        sudo apt-get install -y git curl tar build-essential
+                        sudo apt-get install -y git curl tar build-essential gdb python3-venv
                         ;;
                     *rhel*|*rocky*|*centos*|*fedora*)
-                        sudo dnf install -y git curl tar gcc gcc-c++ make
+                        sudo dnf install -y git curl tar gcc gcc-c++ make gdb python3
                         ;;
                     *)
                         echo "  Unrecognized distro (ID=${ID:-unknown}). Install git, curl, tar and a C compiler manually, then re-run."

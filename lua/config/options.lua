@@ -26,5 +26,13 @@ opt.undofile = true
 opt.swapfile = false
 opt.updatetime = 250
 
+-- Reload buffers changed on disk outside nvim (e.g. a pre-commit hook
+-- reformatting a file while it's open) — only takes effect where
+-- something actually calls `:checktime` (see toggleterm.lua: wired to
+-- terminal open/close, since that's the natural "left nvim, ran shell
+-- commands, came back" moment). Never touches buffers with unsaved
+-- changes — those just get a warning, not silently overwritten.
+opt.autoread = true
+
 -- lets pyright/ruff pick the interpreter venv-selector points at
 vim.g.python3_host_prog = vim.fn.exepath("python3")
