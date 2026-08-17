@@ -4,12 +4,17 @@ vim.g.maplocalleader = " "
 local opt = vim.opt
 
 opt.number = true
-opt.relativenumber = true
 opt.termguicolors = true
 opt.signcolumn = "yes"
 opt.cursorline = true
 opt.scrolloff = 8
 opt.wrap = false
+
+-- End-of-line marker. `tab` is set too so real tab characters (Makefiles
+-- etc. — this config expandtabs its own edits) render as plain spaces
+-- instead of `list`'s default ^I control-character notation.
+opt.list = true
+opt.listchars = { eol = "↵", tab = "  " }
 
 opt.expandtab = true
 opt.shiftwidth = 4
