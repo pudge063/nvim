@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # One-shot installer for this nvim config. No Homebrew, no distro-specific
 # package pinning for the tools nvim actually needs — everything (Neovim,
-# ripgrep, fd, Node.js) is fetched as a prebuilt binary release and installed
-# under ~/.local, so the exact same script works on macOS and on any Linux
-# server (Debian/Ubuntu/RockyLinux and friends), with or without sudo.
+# ripgrep, fd, Node.js, Python) is fetched as a prebuilt binary release and
+# installed under ~/.local, so the exact same script works on macOS and on
+# any Linux server (Debian/Ubuntu/RockyLinux and friends), with or without
+# sudo.
 #
 # Usage:
 #   curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bash
@@ -31,6 +32,16 @@ PATH_LINE="export PATH=\"$BIN_DIR:\$PATH\""
 # current LTS and updating this one line.
 NODE_VERSION="v24.19.0"
 
+# Python is pinned to a major.minor (not a full version) because
+# python-build-standalone's release assets embed the full patch version in
+# the filename (e.g. cpython-3.12.9+20260814-...) and that patch number
+# moves with every release tag — gh_release_asset_url below matches on this
+# prefix instead of needing the exact patch version. mason (pyright's
+# venv-based siblings: debugpy, cmake-language-server) has no hard version
+# floor beyond "reasonably modern", so bump the minor version here whenever
+# convenient rather than on any particular schedule.
+PYTHON_VERSION="3.12"
+
 TS_LANGS=(python lua vim vimdoc bash c cpp markdown markdown_inline json yaml toml)
 # nvim-treesitter's default install_dir is stdpath('data')/site, not its
 # own plugin directory under .../lazy/nvim-treesitter.
@@ -41,11 +52,11 @@ usage() {
 Usage: bootstrap.sh [COMMAND]
 
 Commands:
-  (none)       Fresh install: system prerequisites, Neovim/ripgrep/fd/Node.js
-               binaries, clone this config, sync plugins, install LSP/
+  (none)       Fresh install: system prerequisites, Neovim/ripgrep/fd/Node.js/
+               Python binaries, clone this config, sync plugins, install LSP/
                formatter tools. Safe to re-run (idempotent).
   --update     Pull the latest config from git and re-sync plugins + tools.
-               Does NOT touch the Neovim/ripgrep/fd/Node.js binaries — use
+               Does NOT touch the Neovim/ripgrep/fd/Node.js/Python binaries — use
                this for "give me whatever's new in the repo" without a full
                reinstall.
   --uninstall  Remove everything this script installed: the config
@@ -69,6 +80,25 @@ gh_latest_tag() {
     # "tag_name" appears exactly once in this payload anyway, plain
     # grep (reads to EOF, no early pipe close) is both correct and safe.
     printf '%s' "$json" | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/'
+}
+
+gh_release_asset_url() {
+    # $1 = owner/repo  $2 = tag  $3 = grep -E pattern to match one asset's
+    # download URL. Needed for releases like python-build-standalone where
+    # the filename embeds a patch version we don't pin (see PYTHON_VERSION
+    # above), so we can't just template the URL the way ripgrep/fd/node do.
+    local json
+    json="$(curl -fsSL "https://api.github.com/repos/$1/releases/tags/$2")"
+    # `|| true`: under `set -o pipefail`, a no-match from the `grep -E "$3"`
+    # filter (a real, expected outcome when the pattern is wrong) would
+    # otherwise abort the whole script via `set -e` before the caller gets a
+    # chance to check for an empty result and print a useful error.
+    printf '%s' "$json" \
+        | grep -oE '"browser_download_url": *"[^"]+"' \
+        | sed -E 's/.*"(https:[^"]+)"/\1/' \
+        | grep -E "$3" \
+        | head -1 \
+        || true
 }
 
 fetch_and_unpack() {
@@ -145,7 +175,7 @@ cmd_install() {
         *) echo "Unsupported architecture: $arch"; exit 1 ;;
     esac
 
-    echo "[1/6] Base prerequisites (git, C compiler — needed for treesitter parsers)"
+    echo "[1/7] Base prerequisites (git, C compiler — needed for treesitter parsers)"
     case "$os" in
         Darwin)
             if ! command -v git >/dev/null 2>&1 || ! command -v cc >/dev/null 2>&1; then
@@ -172,11 +202,6 @@ cmd_install() {
             command -v tar >/dev/null 2>&1 || missing+=(tar)
             command -v cc >/dev/null 2>&1 || command -v gcc >/dev/null 2>&1 || missing+=(compiler)
             command -v gdb >/dev/null 2>&1 || missing+=(gdb)
-            # `python3 -m venv` needs a separate package on Debian/Ubuntu (not
-            # bundled with python3) — mason installs debugpy and
-            # cmake-language-server into a venv, so this fails those two
-            # silently-ish (spawn: python3 failed with exit code 1) without it.
-            python3 -m venv --help >/dev/null 2>&1 || missing+=(python3-venv)
             if [ ${#missing[@]} -eq 0 ]; then
                 echo "  already present."
             else
@@ -185,7 +210,7 @@ cmd_install() {
                 case "${ID:-}${ID_LIKE:-}" in
                     *debian*|*ubuntu*)
                         sudo apt-get update
-                        sudo apt-get install -y git curl tar build-essential gdb python3-venv
+                        sudo apt-get install -y git curl tar build-essential gdb
                         ;;
                     *rhel*|*rocky*|*centos*|*fedora*)
                         sudo dnf install -y git curl tar gcc gcc-c++ make gdb python3
@@ -200,7 +225,7 @@ cmd_install() {
         *) echo "Unsupported OS: $os"; exit 1 ;;
     esac
 
-    echo "[2/6] Neovim (official release binary)"
+    echo "[2/7] Neovim (official release binary)"
     case "$os" in
         Darwin) nvim_url="https://github.com/neovim/neovim/releases/latest/download/nvim-macos-${arch_nvim}.tar.gz" ;;
         Linux)  nvim_url="https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${arch_nvim}.tar.gz" ;;
@@ -208,7 +233,7 @@ cmd_install() {
     fetch_and_unpack "$nvim_url" nvim
     link "$INSTALL_ROOT/nvim/bin/nvim"
 
-    echo "[3/6] ripgrep + fd (needed by Telescope)"
+    echo "[3/7] ripgrep + fd (needed by Telescope)"
     rg_tag="$(gh_latest_tag BurntSushi/ripgrep)"
     fd_tag="$(gh_latest_tag sharkdp/fd)"
     case "$os" in
@@ -226,7 +251,7 @@ cmd_install() {
     link "$INSTALL_ROOT/ripgrep/rg"
     link "$INSTALL_ROOT/fd/fd"
 
-    echo "[4/6] tree-sitter CLI (nvim-treesitter's main branch needs it to compile parsers)"
+    echo "[4/7] tree-sitter CLI (nvim-treesitter's main branch needs it to compile parsers)"
     ts_tag="$(gh_latest_tag tree-sitter/tree-sitter)"
     case "$os" in
         Darwin) ts_target="macos-${arch_node}" ;;
@@ -234,7 +259,7 @@ cmd_install() {
     esac
     fetch_gz_binary "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-${ts_target}.gz" tree-sitter
 
-    echo "[5/6] Node.js (mason needs it to install pyright)"
+    echo "[5/7] Node.js (mason needs it to install pyright)"
     case "$os" in
         Darwin) node_url="https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-darwin-${arch_node}.tar.gz" ;;
         Linux)  node_url="https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-${arch_node}.tar.gz" ;;
@@ -243,6 +268,24 @@ cmd_install() {
     link "$INSTALL_ROOT/node/bin/node"
     link "$INSTALL_ROOT/node/bin/npm"
     link "$INSTALL_ROOT/node/bin/npx"
+
+    echo "[6/7] Python (mason needs it for pip-based tools: debugpy, cmake-language-server)"
+    py_tag="$(gh_latest_tag astral-sh/python-build-standalone)"
+    case "$os" in
+        Darwin) py_target="${arch_rust}-apple-darwin" ;;
+        Linux)  py_target="${arch_rust}-unknown-linux-gnu" ;;
+    esac
+    # The release asset's actual URL percent-encodes the `+` before the build
+    # date (cpython-3.12.9%2B20260814-...) rather than using a literal `+`.
+    py_url="$(gh_release_asset_url astral-sh/python-build-standalone "$py_tag" \
+        "cpython-${PYTHON_VERSION}\.[0-9]+%2B${py_tag}-${py_target}-install_only\.tar\.gz$")"
+    if [ -z "$py_url" ]; then
+        echo "  couldn't find a python-build-standalone asset for ${py_target} at tag ${py_tag} — check PYTHON_VERSION in this script."
+        exit 1
+    fi
+    fetch_and_unpack "$py_url" python
+    link "$INSTALL_ROOT/python/bin/python3"
+    link "$INSTALL_ROOT/python/bin/pip3"
 
     export PATH="$BIN_DIR:$PATH"
     for rc in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.profile"; do
@@ -258,7 +301,7 @@ cmd_install() {
 
     echo "nvim: $(nvim --version | head -n1)"
 
-    echo "[6/6] Config + plugins + LSP tools"
+    echo "[7/7] Config + plugins + LSP tools"
     if [ ! -d "$CONFIG_DIR/.git" ]; then
         if [ -d "$CONFIG_DIR" ] && [ -n "$(ls -A "$CONFIG_DIR" 2>/dev/null)" ]; then
             echo "  $CONFIG_DIR already exists and isn't this repo — not touching it."
@@ -308,7 +351,7 @@ cmd_uninstall() {
     echo "  - $DATA_DIR (plugins, mason-installed LSP/formatter tools, treesitter parsers)"
     echo "  - $STATE_DIR (shada, undo history, swap files)"
     echo "  - $CACHE_DIR"
-    echo "  - $INSTALL_ROOT/{nvim,ripgrep,fd,node} and their symlinks in $BIN_DIR"
+    echo "  - $INSTALL_ROOT/{nvim,ripgrep,fd,node,python} and their symlinks in $BIN_DIR"
     echo "It will NOT touch system packages installed via apt/dnf (git, curl, a C compiler)."
     echo
 
@@ -324,12 +367,12 @@ cmd_uninstall() {
     rm -rf "$CONFIG_DIR" "$DATA_DIR" "$STATE_DIR" "$CACHE_DIR"
 
     echo "Removing binaries installed under $INSTALL_ROOT..."
-    for name in nvim ripgrep fd node; do
+    for name in nvim ripgrep fd node python; do
         rm -rf "${INSTALL_ROOT:?}/$name"
     done
 
     echo "Removing symlinks from $BIN_DIR..."
-    for bin in nvim rg fd tree-sitter node npm npx; do
+    for bin in nvim rg fd tree-sitter node npm npx python3 pip3; do
         target="$BIN_DIR/$bin"
         # Only remove symlinks that actually point into $INSTALL_ROOT — never
         # touch a same-named binary this script didn't create.
