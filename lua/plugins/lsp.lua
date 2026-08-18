@@ -107,6 +107,30 @@ return {
                     end
                 end
 
+                -- Highlight other occurrences of the symbol under the cursor
+                -- (colors set in autocmds.lua's ColorScheme handler, linked
+                -- to Visual so they're visible under any theme). Not every
+                -- server advertises this (e.g. ruff doesn't), hence the
+                -- capability check.
+                if client and client:supports_method("textDocument/documentHighlight") then
+                    local group = vim.api.nvim_create_augroup("lsp-document-highlight-" .. ev.buf, { clear = true })
+                    vim.api.nvim_create_autocmd("CursorHold", {
+                        group = group,
+                        buffer = ev.buf,
+                        callback = vim.lsp.buf.document_highlight,
+                    })
+                    vim.api.nvim_create_autocmd({ "CursorMoved", "InsertEnter", "BufLeave" }, {
+                        group = group,
+                        buffer = ev.buf,
+                        callback = vim.lsp.buf.clear_references,
+                    })
+                    vim.api.nvim_create_autocmd("LspDetach", {
+                        group = group,
+                        buffer = ev.buf,
+                        callback = vim.lsp.buf.clear_references,
+                    })
+                end
+
                 local opts = { buffer = ev.buf }
                 local map = vim.keymap.set
                 opts.desc = "Go to definition"

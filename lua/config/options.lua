@@ -41,3 +41,8 @@ opt.autoread = true
 
 -- lets pyright/ruff pick the interpreter venv-selector points at
 vim.g.python3_host_prog = vim.fn.exepath("python3")
+
+-- Format-on-save (conform.nvim, see plugins/formatting.lua) is opt-in, not
+-- opt-out: default OFF everywhere. Toggle back on globally with <leader>uF,
+-- or just for the current buffer with <leader>uf.
+vim.g.disable_autoformat = true

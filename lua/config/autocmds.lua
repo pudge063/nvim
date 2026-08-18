@@ -27,5 +27,16 @@ vim.api.nvim_create_autocmd("ColorScheme", {
                 vim.api.nvim_set_hl(0, group, hl)
             end
         end
+
+        -- LSP "highlight other occurrences of the symbol under the cursor"
+        -- (wired up in lsp.lua's LspAttach). The default LspReference*
+        -- groups just link to CurrentWord, which on these themes is bold-only
+        -- — indistinguishable from the bold-identifier tweak above. Link to
+        -- Visual instead: every theme defines it with a background distinct
+        -- from normal text, so occurrences stay visible no matter which
+        -- colorscheme is active.
+        for _, group in ipairs({ "LspReferenceText", "LspReferenceRead", "LspReferenceWrite" }) do
+            vim.api.nvim_set_hl(0, group, { link = "Visual" })
+        end
     end,
 })
