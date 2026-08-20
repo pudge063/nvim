@@ -5,7 +5,7 @@
 файлов, встроенный терминал, undo-tree, тема sonokai. Ставится
 на новой машине (macOS / Linux) одной командой, без Homebrew на маке.
 
-Репозиторий: https://gl.pivlab.dev/rnd/nvim-config
+Репозиторий: https://github.com/pudge063/nvim.git
 
 **Документация:**
 - [KEYMAPS.md](KEYMAPS.md) — полный список хоткеев этого конфига, подробно, с пояснениями и примерами
@@ -17,9 +17,9 @@
 
 ## Быстрый старт
 
-**Уже есть SSH-ключ в GitLab (обычный рабочий кейс):**
+**Install basic:**
 ```bash
-curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bash
+curl -fsSL https://github.com/pudge063/nvim/-/raw/master/bootstrap.sh | bash
 ```
 Один `curl`, который: ставит Neovim/ripgrep/fd/Node.js как бинарники в
 `~/.local`, клонирует этот репозиторий в `~/.config/nvim`, синхронизирует
@@ -28,9 +28,9 @@ curl -fsSL https://gl.pivlab.dev/rnd/nvim-config/-/raw/master/bootstrap.sh | bas
 После этого откройте новый терминал (чтобы подхватился PATH) и запустите
 `nvim`.
 
-Если что-то пошло не так с одной командой — то же самое руками:
+If что-то пошло не так с одной командой — same руками:
 ```bash
-git clone git@gl.pivlab.dev:rnd/nvim-config.git ~/.config/nvim
+git clone https://github.com/pudge063/nvim.git ~/.config/nvim
 ~/.config/nvim/bootstrap.sh
 ```
 
@@ -60,7 +60,7 @@ git clone git@gl.pivlab.dev:rnd/nvim-config.git ~/.config/nvim
   поставленные через `apt`/`dnf` (git, curl, компилятор) — не трогает,
   они общие для системы, не только для этого конфига.
 
-## Что внутри
+## config three
 
 ```
 ~/.config/nvim/
@@ -95,7 +95,7 @@ git clone git@gl.pivlab.dev:rnd/nvim-config.git ~/.config/nvim
 └── lazy-lock.json              # точные версии всех плагинов — коммитится
 ```
 
-## Установка по ОС
+## os type
 
 `bootstrap.sh` сам определяет ОС и архитектуру (Intel/Apple Silicon,
 x86_64/arm64) и ставит всё нужное как **бинарники** с официальных

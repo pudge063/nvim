@@ -37,6 +37,13 @@ return {
                 hide_gitignored = false,
             },
             follow_current_file = { enabled = true },
+            -- Deleting/renaming *through* neo-tree's own mappings (`d`, `r`,
+            -- ...) already refreshes the tree. This is for the other case:
+            -- a file removed some other way (shell in a toggleterm split,
+            -- `rm`, git checkout, LSP rename touching disk) — without an OS
+            -- file watcher neo-tree only notices on its own next :write or
+            -- manual `R` refresh, so a deleted file lingers in the tree.
+            use_libuv_file_watcher = true,
         },
         window = { width = 32 },
     },

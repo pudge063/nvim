@@ -17,8 +17,8 @@
 
 set -euo pipefail
 
-REPO_URL="git@gl.pivlab.dev:rnd/nvim-config.git"
-REPO_HTTP_URL="https://gl.pivlab.dev/rnd/nvim-config.git"
+REPO_URL="git@github.com:pudge063/nvim.git"
+REPO_HTTP_URL="https://github.com/pudge063/nvim.git"
 CONFIG_DIR="$HOME/.config/nvim"
 INSTALL_ROOT="$HOME/.local/opt"
 BIN_DIR="$HOME/.local/bin"

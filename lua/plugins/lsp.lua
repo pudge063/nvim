@@ -88,6 +88,36 @@ return {
             float = { border = "rounded", source = true },
         })
 
+        -- <leader>rn (below) triggers this like VSCode's F2: it edits every
+        -- file the rename touches, in memory, across all open/newly-opened
+        -- buffers — but leaves them dirty, silently, unless something saves
+        -- them. Wrap the default handler to auto-save exactly the buffers
+        -- the workspace edit touched (never unrelated dirty buffers).
+        local default_rename_handler = vim.lsp.handlers["textDocument/rename"]
+        vim.lsp.handlers["textDocument/rename"] = function(err, result, ctx, config)
+            default_rename_handler(err, result, ctx, config)
+            if not result then
+                return
+            end
+            local uris = {}
+            for uri in pairs(result.changes or {}) do
+                uris[uri] = true
+            end
+            for _, change in ipairs(result.documentChanges or {}) do
+                if change.textDocument and change.textDocument.uri then
+                    uris[change.textDocument.uri] = true
+                end
+            end
+            for uri in pairs(uris) do
+                local bufnr = vim.uri_to_bufnr(uri)
+                if vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].modified then
+                    vim.api.nvim_buf_call(bufnr, function()
+                        vim.cmd("silent update")
+                    end)
+                end
+            end
+        end
+
         vim.api.nvim_create_autocmd("LspAttach", {
             callback = function(ev)
                 local client = vim.lsp.get_client_by_id(ev.data.client_id)
