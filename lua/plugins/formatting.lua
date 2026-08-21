@@ -44,7 +44,7 @@ return {
     },
     opts = {
         formatters_by_ft = {
-            python = { "ruff_format", "ruff_organize_imports" },
+            python = { "ruff_fix", "ruff_organize_imports", "ruff_format" },
             lua = { "stylua" },
             yaml = { "prettier" },
             toml = { "taplo" },
