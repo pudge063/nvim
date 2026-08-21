@@ -60,7 +60,7 @@ describe("python LSP (pyright + ruff)", function()
         -- nil), so `gI` — despite being mapped and useful for LSPs that do
         -- support it — is a dead end for Python specifically. `gr` on the
         -- base class is the realistic way to find its subclasses. See the
-        -- correction in KEYMAPS.md.
+        -- correction in docs/keymaps.md.
         local base_buf = helpers.edit_fixture("python_project/pkg/base.py")
         helpers.wait_for_lsp(base_buf, "pyright", 15000)
         local sample_buf = helpers.edit_fixture("python_project/sample.py") -- get it into the workspace
