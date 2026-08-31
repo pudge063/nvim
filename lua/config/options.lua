@@ -46,3 +46,5 @@ vim.g.python3_host_prog = vim.fn.exepath("python3")
 -- opt-out: default OFF everywhere. Toggle back on globally with <leader>uF,
 -- or just for the current buffer with <leader>uf.
 vim.g.disable_autoformat = true
+
+vim.opt.clipboard = "unnamedplus"
