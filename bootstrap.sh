@@ -69,6 +69,14 @@ Commands:
 EOF
 }
 
+glibc_version() {
+    getconf GNU_LIBC_VERSION | awk '{print $2}'
+}
+
+version_ge() {
+    [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$2" ]
+}
+
 gh_latest_tag() {
     # $1 = owner/repo
     # curl fully into a variable first: piping straight into `grep -m1`
@@ -252,11 +260,27 @@ cmd_install() {
     link "$INSTALL_ROOT/fd/fd"
 
     echo "[4/7] tree-sitter CLI (nvim-treesitter's main branch needs it to compile parsers)"
-    ts_tag="$(gh_latest_tag tree-sitter/tree-sitter)"
     case "$os" in
-        Darwin) ts_target="macos-${arch_node}" ;;
-        Linux)  ts_target="linux-${arch_node}" ;;
+    Darwin)
+        ts_tag="$(gh_latest_tag tree-sitter/tree-sitter)"
+        ts_target="macos-${arch_node}"
+        ;;
+    Linux)
+        glibc_ver="$(glibc_version)"
+
+        if version_ge "$glibc_ver" "2.39"; then
+            ts_tag="$(gh_latest_tag tree-sitter/tree-sitter)"
+        else
+            ts_tag="v0.25.10"
+        fi
+
+        ts_target="linux-${arch_node}"
+
+        echo "  glibc: ${glibc_ver}"
+        echo "  tree-sitter: ${ts_tag}"
+        ;;
     esac
+
     fetch_gz_binary "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-${ts_target}.gz" tree-sitter
 
     echo "[5/7] Node.js (mason needs it to install pyright)"
